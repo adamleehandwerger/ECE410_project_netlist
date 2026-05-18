@@ -8,10 +8,11 @@
 // Four modules implement a duty-cycling RBF-SVM classifier for five cardiac
 // arrhythmia classes (Normal, PVC, AFib, VT, SVT).
 //
-//   svm_compute_core  — top-level FSM; integrates the three submodules below
+//   svm_compute_core  — top-level FSM; integrates the four submodules below
 //   input_fifo        — 8192-word (16 KB) synchronous FIFO; buffers QSPI data
-//   distance_matrix   — squared Euclidean distance Σ(x[k]-sv[k])²
+//   distance_matrix   — squared Euclidean distance Σ(x[k]-sv[k])²; 2-cycle drain flush
 //   horner_engine     — range-reduction LUT + 15th-order Horner for exp(-γD)
+//   sync_ff           — 2-FF metastability barrier for vbatt_ok / vbatt_warn
 //
 // RANGE-REDUCTION LUT KERNEL  (replaces single-stage Horner from _updated)
 // -------------------------------------------------------------------------

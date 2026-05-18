@@ -8,12 +8,17 @@
 //   svm_sv_ram_if    — Core ↔ Support-Vector SRAM  (128 KB, read-only)
 //   svm_work_ram_if  — Core ↔ Workspace SRAM       (≤500 KB, read/write)
 //
-// Updated from m2 to match the verified svm_compute_core.sv (19/19 tests PASS):
-//   • param_addr widened 2→3 bits to address 5 bias registers
-//   • bias_reg[5] output added (one per class, Q6.10)
-//   • error_code[3:0] output added (sticky fault code, 7 defined values)
-//   • DEFAULT_GAMMA corrected to 0.25 (was 0.01; Q6.10 = 256 = 0x0100)
-//   • ERR_GAMMA_ZERO (0x6) added to error table
+// Updated from m2 to match the verified svm_compute_core.sv (22/22 tests PASS):
+//   Fix 1  • param_addr widened 2→3 bits; bias_reg[5] output added (one per class)
+//   Fix 2  • gamma_latched shadow register — captured at start; immune to mid-batch writes
+//   Fix 3  • ERR_GAMMA_ZERO (0x6) — gamma=0 collapses all kernels to 1.0 silently
+//   Fix 4  • ERR_WARMING_UP (0x8) advisory — fewer than 100 beats since reset
+//   Fix 5  • ERR_INTERRUPTED (0x9) advisory — rst_n fired mid-warm-up [1,99]
+//   Fix 6  • ERR_LOW_BATTERY (0xA) / ERR_POWER_FAIL (0xB) — vbatt_warn / vbatt_ok pins added
+//   Fix 7  • num_samples_latched shadow register — captured at start && vbatt_ok_s
+//   Fix 8  • vbatt_ok_s guard in IDLE — sv_count_reg / gamma_latched only latch on start && vbatt_ok_s
+//   Fix 9  • sync_ff 2-FF synchronizers for vbatt_ok (reset=1) and vbatt_warn (reset=0)
+//   Fix 10 • Distance matrix drain flush — 2 extra cycles after last valid_in; diff/diff_sq reset in IDLE
 //
 // ===========================================================================
 // QSPI PROTOCOL
@@ -60,29 +65,42 @@
 //   Writes above this threshold set ERR_GAMMA_SAT without updating gamma_reg.
 //
 // ===========================================================================
-// ERROR CODE TABLE  (error_code [3:0], sticky, cleared only by rst_n)
+// ERROR CODE TABLE  (error_code [3:0])
 // ===========================================================================
 //
-//   Code  Name               Trigger condition
-//   ────────────────────────────────────────────────────────────────────────
-//   0x0   ERR_NONE           No fault
-//   0x1   ERR_SV_ZERO        Σ num_sv_per_class = 0 at start
-//   0x2   ERR_SV_OVERFLOW    Σ num_sv_per_class > 250 at start
-//   0x3   ERR_ILLEGAL_STATE  FSM default branch taken (internal fault)
-//   0x4   ERR_GAMMA_SAT      gamma_int > 8192 during param write
-//   0x5   ERR_FIFO_OVERFLOW  QSPI data arrived while FIFO full (data dropped)
-//   0x6   ERR_GAMMA_ZERO     gamma_int = 0 while FSM not IDLE
-//                            (all kernels collapse to 1.0 — silent classifier
-//                             failure; error flag forces safe shutdown)
+//   ── Sticky faults (0x1–0x7): latch on first occurrence; hold until rst_n ──
 //
-//   Priority (highest first): ERR_SV_ZERO > ERR_SV_OVERFLOW >
-//     ERR_ILLEGAL_STATE > ERR_GAMMA_SAT > ERR_GAMMA_ZERO > ERR_FIFO_OVERFLOW
+//   Code  Name                   Trigger condition
+//   ────────────────────────────────────────────────────────────────────────
+//   0x0   ERR_NONE               No fault
+//   0x1   ERR_SV_ZERO            Σ num_sv_per_class = 0 at start
+//   0x2   ERR_SV_OVERFLOW        Σ num_sv_per_class > 250 at start
+//   0x3   ERR_ILLEGAL_STATE      FSM default branch taken (internal fault)
+//   0x4   ERR_GAMMA_SAT          gamma_int > 8192 while FSM not IDLE
+//   0x5   ERR_FIFO_OVERFLOW      QSPI data arrived while FIFO full (word dropped)
+//   0x6   ERR_GAMMA_ZERO         gamma_int = 0 while FSM not IDLE
+//                                (all kernels = 1.0 — silent classifier failure)
+//   0x7   ERR_NUM_SAMPLES_ZERO   num_samples = 0 at start (batch would loop forever)
+//
+//   ── Advisory codes (0x8–0xB): non-sticky; auto-clear when condition resolves ──
+//
+//   0x8   ERR_WARMING_UP         heartbeat_count < 100 on clean start/reset
+//   0x9   ERR_INTERRUPTED        rst_n fired while heartbeat_count ∈ [1,99]
+//   0xA   ERR_LOW_BATTERY        vbatt_warn_s = 1 (below soft threshold)
+//   0xB   ERR_POWER_FAIL         vbatt_ok_s = 0 (below hard threshold; start blocked)
+//
+//   Advisory check: error_code >= 4'h8 → advisory (not a hard fault)
+//   Sticky always overrides advisory.  Multiple sticky: highest priority wins.
+//
+//   Priority (highest first): ERR_ILLEGAL_STATE > ERR_SV_ZERO > ERR_SV_OVERFLOW >
+//     ERR_NUM_SAMPLES_ZERO > ERR_GAMMA_SAT > ERR_GAMMA_ZERO > ERR_FIFO_OVERFLOW >
+//     ERR_POWER_FAIL > ERR_LOW_BATTERY > ERR_INTERRUPTED / ERR_WARMING_UP
 //
 // ===========================================================================
 // FSM STATE SUMMARY
 // ===========================================================================
 //
-//   IDLE          → LOAD_FIFO       on start pulse (if no error)
+//   IDLE          → LOAD_FIFO       on start && vbatt_ok_s (blocked if vbatt_ok=0)
 //   LOAD_FIFO     → LOAD_FEATURES   when FIFO holds ≥ 256 words
 //   LOAD_FEATURES → COMPUTE_DIST    after 256 feature words consumed
 //   COMPUTE_DIST  → COMPUTE_KERNEL  when distance_matrix asserts dist_done
