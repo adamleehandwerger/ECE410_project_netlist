@@ -179,9 +179,7 @@ module svm_compute_core #(
 
     logic [6:0]              heartbeat_count; // saturates at 100; persists across batches, clears on rst_n
     logic                    interrupted;     // set on rst_n when heartbeat_count was in [1,99]; cleared at beat 100
-    logic                    arm_interrupted = 1'b0; // gated mirror of (count in [1,99]); only updates when
-                                                     // rst_n=1 so it freezes at the pre-reset value while
-                                                     // the reset pulse is held low
+    logic                    arm_interrupted = 1'b0; // simulation init only — synthesis uses async reset below
 
     logic                    dist_valid_latch;
 
@@ -513,15 +511,34 @@ module svm_compute_core #(
     // =========================================================================
     // Warm-up Counter + Interrupted Flag
     // =========================================================================
-    // arm_interrupted only updates while rst_n=1.  It freezes as soon as rst_n
-    // falls and holds the pre-reset value through the entire reset pulse.
-    // When rst_n rises again, the interrupted block reads arm_interrupted at
-    // the negedge-rst_n event, getting the correct pre-reset snapshot.
-    // (Icarus non-standard NBA order: both heartbeat_count and interrupted in
-    // one reset clause cause interrupted to read heartbeat_count=0 instead of
-    // its pre-reset value; gating arm_interrupted bypasses that race entirely.)
+    // arm_interrupted freezes the warm-up state so that the `interrupted` block
+    // can safely read it at negedge rst_n without seeing the NBA-zeroing of
+    // heartbeat_count from the same time step.
+    //
+    // Two versions are provided via `ifdef:
+    //
+    //   SYNTHESIS (Yosys/DC/Genus):
+    //     Proper async reset to 0.  IEEE 1800-compliant synthesis simulators
+    //     read arm_interrupted's PRE-reset value in the `interrupted` block
+    //     because NBA reads commit before writes across separately-triggered
+    //     always_ff blocks — so the pre-reset snapshot is correctly captured.
+    //
+    //   Icarus Verilog (simulation only):
+    //     Gated-only update (no negedge rst_n).  arm_interrupted is not in
+    //     the negedge rst_n sensitivity list, so it holds its last clocked
+    //     value when rst_n falls — Icarus's non-standard cross-block NBA
+    //     ordering cannot corrupt the capture in the `interrupted` block.
+    //     arm_interrupted initialises to X at power-on but reaches 0 on the
+    //     first posedge clk after rst_n deasserts (heartbeat_count = 0 → false).
+    `ifdef SYNTHESIS
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) arm_interrupted <= 1'b0;
+        else        arm_interrupted <= (heartbeat_count > 7'd0 && heartbeat_count < 7'd100);
+    end
+    `else
     always_ff @(posedge clk)
         if (rst_n) arm_interrupted <= (heartbeat_count > 7'd0 && heartbeat_count < 7'd100);
+    `endif
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
