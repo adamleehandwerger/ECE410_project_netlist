@@ -1,7 +1,7 @@
 # SVM Compute Core — Error Code Reference
 
 **RTL:** `svm_compute_core.sv`  
-**Verification status:** 22/22 unit tests PASS  
+**Verification status:** 13/13 unit testbenches PASS  
 **Milestone:** m3 (pre-netlist verified)
 
 Error codes are reported on the 4-bit `error_code[3:0]` output and the 1-bit `error` flag.  

@@ -3,7 +3,7 @@
 **RTL:** `svm_compute_core.sv`  
 **Interface definitions:** `svm_interfaces.sv`  
 **Testbench:** `tb_interface.sv` → `tb_interface.log`  
-**Verification status:** 22/22 unit tests PASS · 24/24 interface checks PASS  
+**Verification status:** 13/13 unit testbenches PASS · 25/25 interface checks PASS  
 **Milestone:** m3 (pre-netlist verified)
 
 ---
