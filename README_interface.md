@@ -257,7 +257,7 @@ Valid SV count: `1 ≤ Σ num_sv_per_class ≤ NUM_SV`. Zero or overflow raises 
 | Advisory codes 0x8–0xB | Not present | **Added** | Warm-up, interrupted, low-battery, power-fail advisories |
 | `work_ram` `ADDR_WIDTH` | 18-bit | **19-bit** | 500 KB workspace requires 19 bits (2¹⁸ = 256 KB < 500 KB) |
 
-## RTL Fixes Applied (m2 → m3)
+## RTL Fixes Applied (m2 → m3, ASIC-ready)
 
 | # | Fix | Symptom fixed |
 |---|-----|---------------|
@@ -271,6 +271,7 @@ Valid SV count: `1 ≤ Σ num_sv_per_class ≤ NUM_SV`. Zero or overflow raises 
 | 8 | `vbatt_ok_s` guard in IDLE — `sv_count_reg`, `gamma_latched`, and `num_samples_latched` only latch when `start && vbatt_ok_s` | IDLE counter block could capture stale values when `vbatt_ok=0` would have blocked the FSM from leaving IDLE anyway |
 | 9 | 2-FF input synchronizers (`sync_ff` module) for `vbatt_ok` and `vbatt_warn` — reset values: `vbatt_ok→1`, `vbatt_warn→0`; FSM uses `_s` suffix signals | Async comparator outputs driven into a synchronous FSM violate setup/hold, causing metastability at netlist/ASIC |
 | 10 | Distance matrix drain flush — 2 extra cycles after last `valid_in` flush the 2-stage `diff→diff_sq→accumulator` pipeline; `diff`/`diff_sq` reset in IDLE | Last 2 of 256 feature dimensions were silently dropped every kernel computation; `diff`/`diff_sq` persisted across SV computations, corrupting SV 2–N |
+| 11 | `arm_interrupted` ASIC reset — `` `ifdef SYNTHESIS `` adds `negedge rst_n` async reset path; Icarus uses gated-only path to avoid its non-standard cross-block NBA ordering; inline `= 1'b0` is simulation init only (synthesis tools ignore it) | Without this fix synthesis produces an unreset FF (lint DRC violation); the inline init is not a reset and is silently dropped by Yosys/DC/Genus |
 
 ---
 

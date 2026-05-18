@@ -1,13 +1,11 @@
 """
-generate_block_diagram.py  v5
+generate_block_diagram.py  v6
 Saves block_diagram.png to ECE410_project_netlist.
 
-Changes from v4:
-  - vbatt_warn / vbatt_ok input pins added (async, 2-FF sync inside core)
-  - FSM start guard updated to start && vbatt_ok_s
-  - Error Codes box expanded: advisory codes 0x8-0xB added
-  - Revisions box: v5 entry added
-  - Distance matrix note updated to 256+2 drain cycles
+Changes from v5:
+  - Fix 11: arm_interrupted ASIC reset (`ifdef SYNTHESIS async reset path)
+  - tb_interface vbatt ports connected — all 13/13 testbenches now PASS
+  - Revisions box: v6 entry added
 """
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -434,7 +432,8 @@ ax.plot([LX+0.22, LX+LW-0.22], [REV_TOP-0.40, REV_TOP-0.40],
         color="#bbbbbb", lw=0.7, zorder=3)
 
 revisions = [
-    ("v5", "2026-05-18", "fixes 4-10 (power pins, sync_ff, drain flush)  22/22 PASS"),
+    ("v6", "2026-05-18", "fix 11 (arm_interrupted ASIC reset, ifdef SYNTHESIS)  13/13 PASS"),
+    ("v5", "2026-05-18", "fixes 4-10 (power pins, sync_ff, drain flush)"),
     ("v4", "2026-05-05", "fixes 1-3 (kernel_valid, gamma shadow, ERR_GAMMA_ZERO)"),
     ("v3", "—",          "LUT range-reduction kernel, 256-dim multi-scale features"),
     ("v2", "—",          "20-bit accumulator, Horner polynomial"),
@@ -449,7 +448,7 @@ for i, (ver, date, desc) in enumerate(revisions):
     tx(ax, LX+1.55, ry, desc, sz=8, color="#444", ha="left")
 
 # Page footer
-tx(ax, 9, 0.12, "Page 1 of 1  —  Hardware blocks  (v5)", sz=10, color="#aaa")
+tx(ax, 9, 0.12, "Page 1 of 1  —  Hardware blocks  (v6)", sz=10, color="#aaa")
 
 plt.tight_layout(pad=0.4)
 out = os.path.join(OUT_DIR, "block_diagram.png")

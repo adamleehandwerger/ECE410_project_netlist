@@ -8,7 +8,7 @@
 //   svm_sv_ram_if    — Core ↔ Support-Vector SRAM  (128 KB, read-only)
 //   svm_work_ram_if  — Core ↔ Workspace SRAM       (≤500 KB, read/write)
 //
-// Updated from m2 to match the verified svm_compute_core.sv (22/22 tests PASS):
+// Updated from m2 to match the verified svm_compute_core.sv (13/13 testbenches PASS):
 //   Fix 1  • param_addr widened 2→3 bits; bias_reg[5] output added (one per class)
 //   Fix 2  • gamma_latched shadow register — captured at start; immune to mid-batch writes
 //   Fix 3  • ERR_GAMMA_ZERO (0x6) — gamma=0 collapses all kernels to 1.0 silently
@@ -19,6 +19,9 @@
 //   Fix 8  • vbatt_ok_s guard in IDLE — sv_count_reg / gamma_latched only latch on start && vbatt_ok_s
 //   Fix 9  • sync_ff 2-FF synchronizers for vbatt_ok (reset=1) and vbatt_warn (reset=0)
 //   Fix 10 • Distance matrix drain flush — 2 extra cycles after last valid_in; diff/diff_sq reset in IDLE
+//   Fix 11 • arm_interrupted ASIC reset — `ifdef SYNTHESIS adds negedge rst_n path so synthesis
+//            produces a properly reset FF; Icarus keeps gated-only path (no negedge rst_n) to avoid
+//            its non-standard cross-block NBA ordering; inline = 1'b0 is simulation init only
 //
 // ===========================================================================
 // QSPI PROTOCOL
