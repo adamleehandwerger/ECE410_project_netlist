@@ -2,7 +2,7 @@
 
 **RTL:** `svm_compute_core.sv`  
 **Verification status:** 13/13 unit testbenches PASS  
-**Milestone:** m3 (pre-netlist verified)
+**Milestone:** m3 (ASIC-ready, v6)
 
 Error codes are reported on the 4-bit `error_code[3:0]` output and the 1-bit `error` flag.  
 Two categories exist: **sticky faults** (0x1–0x7) and **advisory codes** (0x8–0xB).

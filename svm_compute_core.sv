@@ -1,6 +1,7 @@
 // ============================================================================
 // Multi-Class Cardiac Arrhythmia Detection — SVM Compute Core  (LUT kernel)
-// ECE 410 Project
+// ECE 410 Project  |  Milestone: m3, v6  |  Status: ASIC-ready (13/13 PASS)
+// Fixes 1–11 applied; `ifdef SYNTHESIS required at synthesis elaboration time
 // ============================================================================
 //
 // OVERVIEW

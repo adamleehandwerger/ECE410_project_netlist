@@ -1,5 +1,5 @@
 // ===========================================================================
-// SVM Compute Core — SystemVerilog Interface Definitions  (m3, pre-netlist)
+// SVM Compute Core — SystemVerilog Interface Definitions  (m3, v6, ASIC-ready)
 // ===========================================================================
 // Three interfaces span the three physical boundaries of svm_compute_core:
 //

@@ -4,7 +4,7 @@
 **Interface definitions:** `svm_interfaces.sv`  
 **Testbench:** `tb_interface.sv` → `tb_interface.log`  
 **Verification status:** 13/13 unit testbenches PASS · 25/25 interface checks PASS  
-**Milestone:** m3 (pre-netlist verified)
+**Milestone:** m3 (ASIC-ready, v6)
 
 ---
 
